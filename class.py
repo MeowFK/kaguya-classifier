@@ -1,9 +1,11 @@
 # if there's problems here, update fastai and torch to latest versions
 # pip install 'name' == 'version'
 # fastbook needed for bing_image_search
+# widgets needed for cleaner
 import dotenv
 from fastai.vision.all import *
 from fastbook import *
+from fastai.vision.widgets import *
 
 # remember to set dls.device = device and learn.model.to(device)
 if torch.backends.mps.is_available():
@@ -60,3 +62,25 @@ failed.map(Path.unlink)
 #     print(f'{o}: {len(img_list)}')
 
 # make DataBlock
+# input: images, output: categories (name)
+# retrieve input images by calling get_image_files
+# do random split with 20% as validation data, make seed random later
+# get answer by the name of the folder the image is in (parent_label)
+chars = DataBlock(
+    blocks = (ImageBlock, CategoryBlock),
+    get_items = get_image_files,
+    splitter = RandomSplitter(valid_pct = 0.2, seed = 42),
+    get_y = parent_label,
+    item_tfms = RandomResizedCrop(224, min_scale = 0.5),
+    batch_tfms = aug_transforms()
+)
+
+# make DataLoader from DataBlock, pass path data into the dataloader
+dls = chars.dataloaders(path)
+
+# learn with resnet18
+learn = vision_learner(dls, resnet18, metrics=error_rate)
+learn.fine_tune(0)
+
+# clean data
+cleaner = ImageClassifierCleaner(learn)
